@@ -1,0 +1,25 @@
+# perplSDK Configuration File Example
+# This is an alternative to environment variables
+
+# Perplexity API settings
+perplexity_api_key: "your-perplexity-api-key-here"
+perplexity_base_url: "https://api.perplexity.ai"
+perplexity_model: "llama-3.1-sonar-small-128k-online"
+
+# GitHub integration settings
+github_token: "your-github-token-here"
+github_repo: "owner/repository-name"
+github_branch: "main"
+
+# Report settings
+default_output_dir: "./reports"
+report_format: "markdown"
+
+# Rate limiting
+api_rate_limit: 60
+retry_attempts: 3
+retry_delay: 1.0
+
+# Logging
+log_level: "INFO"
+log_file: "perplsdk.log"
