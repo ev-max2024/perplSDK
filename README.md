@@ -8,6 +8,7 @@ A comprehensive Python SDK for automating AI-powered research, market intelligen
 - **Perplexity API Integration**: Seamless async/sync client with rate limiting and error handling
 - **Research Automation**: Project-based research with parallel query execution
 - **Market Intelligence**: EV industry-focused market analysis with insights extraction
+- **COPILOT - Super Fast Performance Intelligence**: Advanced performance analysis across multiple contexts
 - **Trend Monitoring**: Emerging trend detection and evolution tracking
 - **Report Scheduling**: Automated report generation and scheduling system
 - **Markdown Formatting**: Professional report formatting for research outputs
@@ -16,6 +17,7 @@ A comprehensive Python SDK for automating AI-powered research, market intelligen
 ### EV MAX INC Specific Features
 - Pre-configured EV industry research templates
 - Market intelligence for electric vehicles, batteries, and charging infrastructure
+- Super fast performance intelligence for EV and manufacturing optimization
 - Automated competitive analysis and strategic recommendations
 - Workflow improvement automation for manufacturing and operations
 - Continuous monitoring of technology and policy developments
@@ -87,6 +89,30 @@ ev_max_insights = market_intel.get_ev_max_insights()
 print(f"Recommendations: {ev_max_insights['recommendations']}")
 ```
 
+### 4. COPILOT - Super Fast Performance Intelligence
+
+```python
+from perplSDK.research.market_intelligence import MarketIntelligence
+
+market_intel = MarketIntelligence()
+
+# Conduct performance intelligence analysis
+performance_analysis = market_intel.conduct_performance_intelligence(
+    context="ev",  # or "general", "manufacturing", "operations"
+    time_frame="current",
+    geographic_focus="north_america"
+)
+
+# Access insights and metrics
+metrics = performance_analysis['performance_metrics']
+print(f"Super Fast Insights: {metrics['super_fast_count']}")
+print(f"High Impact: {metrics['high_impact_count']}")
+
+# Get recommendations
+for rec in performance_analysis['recommendations']:
+    print(f"- {rec}")
+```
+
 ## 📊 Command Line Interface
 
 perplSDK includes a powerful CLI:
@@ -101,6 +127,11 @@ perpl-research research "EV Analysis" --topic "electric vehicles" --output ev_re
 # Market intelligence
 perpl-research market electric_vehicles --analysis-type trends --output market_report
 
+# COPILOT - Super Fast Performance Intelligence
+perpl-research copilot --context ev --output performance_report
+perpl-research copilot --context manufacturing --geographic-focus "north america"
+perpl-research copilot --context operations --queries "workflow optimization" "process efficiency"
+
 # Trend monitoring
 perpl-research trends detect "electric vehicles" "battery technology"
 
@@ -110,6 +141,31 @@ perpl-research schedule add "Daily EV Trends" trend_analysis daily --topic "elec
 # GitHub integration
 perpl-research github publish report.md reports/latest.md --message "Latest analysis"
 ```
+
+## 🚀 COPILOT - Super Fast Performance Intelligence
+
+The COPILOT feature provides super fast performance intelligence analysis across different contexts:
+
+```bash
+# General performance intelligence
+perpl-research copilot --context general --output performance_intel
+
+# EV-specific performance analysis
+perpl-research copilot --context ev --time-frame current
+
+# Manufacturing performance optimization
+perpl-research copilot --context manufacturing --geographic-focus "global"
+
+# Operations performance insights
+perpl-research copilot --context operations --output ops_performance
+```
+
+### Performance Intelligence Contexts
+
+- **general**: High-performance technology innovations and optimization techniques
+- **ev**: Electric vehicle performance, acceleration, and fast charging
+- **manufacturing**: Production speed, efficiency, and automation performance
+- **operations**: Business process performance and workflow optimization
 
 ## 🔄 Automated Workflows
 
