@@ -13,6 +13,7 @@ from .research.automation import ResearchAutomation
 from .reports.scheduler import ReportScheduler
 from .reports.formatter import MarkdownFormatter
 from .github_integration.publisher import GitHubPublisher
+from .utils.data_export import DataExporter
 
 __all__ = [
     "PerplexityClient",
@@ -20,4 +21,5 @@ __all__ = [
     "ReportScheduler",
     "MarkdownFormatter",
     "GitHubPublisher",
+    "DataExporter",
 ]

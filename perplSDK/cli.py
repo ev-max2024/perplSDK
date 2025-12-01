@@ -19,6 +19,7 @@ from .research.trend_monitor import TrendMonitor
 from .reports.scheduler import ReportScheduler
 from .reports.formatter import MarkdownFormatter
 from .github_integration.publisher import GitHubPublisher
+from .utils.data_export import DataExporter
 
 
 def cmd_search(args):
@@ -457,6 +458,74 @@ def cmd_github(args):
     return 0
 
 
+def cmd_export(args):
+    """Export data to various formats."""
+    import json as json_module
+
+    try:
+        # Check available formats
+        if args.command == "formats":
+            available = DataExporter.get_available_formats()
+            print("Available export formats:")
+            for fmt, is_available in available.items():
+                status = "✅" if is_available else "❌ (install required)"
+                print(f"  {fmt}: {status}")
+            return 0
+
+        # Export from file - requires output_dir
+        exporter = DataExporter(output_dir=args.output_dir)
+
+        if args.command == "file":
+            # Read input file
+            input_path = Path(args.input)
+            if not input_path.exists():
+                print(f"Error: Input file not found: {args.input}")
+                return 1
+
+            # Determine input format and read data
+            if input_path.suffix == '.json':
+                with open(input_path, 'r', encoding='utf-8') as f:
+                    data = json_module.load(f)
+            elif input_path.suffix == '.csv':
+                import csv
+                with open(input_path, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    data = list(reader)
+            else:
+                print(f"Error: Unsupported input format: {input_path.suffix}")
+                print("Supported input formats: .json, .csv")
+                return 1
+
+            # Prepare export kwargs based on format
+            export_kwargs = {}
+            if args.format in ('pdf', 'docx', 'word'):
+                export_kwargs['title'] = args.title or f"Export: {input_path.name}"
+
+            # Export to requested format
+            output_file = exporter.export_insights(
+                insights=data if isinstance(data, list) else [data],
+                format=args.format,
+                filename=args.output or input_path.stem,
+                **export_kwargs
+            )
+
+            print(f"✅ Data exported successfully: {output_file}")
+            return 0
+
+    except ImportError as e:
+        print(f"❌ Error: {e}")
+        print("\nTo enable all export formats, install the export dependencies:")
+        print("  pip install perplSDK[export]")
+        print("\nOr install individual packages:")
+        print("  pip install openpyxl      # For Excel export")
+        print("  pip install python-docx   # For Word export")
+        print("  pip install reportlab     # For PDF export")
+        return 1
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return 1
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -576,6 +645,25 @@ def main():
     github_subparsers.add_parser('setup', help='Set up automated reporting')
     
     github_parser.set_defaults(func=cmd_github)
+    
+    # Export command
+    export_parser = subparsers.add_parser('export', help='Export data to various formats')
+    export_subparsers = export_parser.add_subparsers(dest='command')
+    
+    # Export formats - list available formats
+    export_subparsers.add_parser('formats', help='List available export formats')
+    
+    # Export file - convert data file to different format
+    file_parser = export_subparsers.add_parser('file', help='Export data file to different format')
+    file_parser.add_argument('input', help='Input file path (JSON or CSV)')
+    file_parser.add_argument('--format', '-f', required=True,
+                            choices=['excel', 'xlsx', 'pdf', 'docx', 'word', 'csv', 'json'],
+                            help='Output format')
+    file_parser.add_argument('--output', '-o', help='Output filename (without extension)')
+    file_parser.add_argument('--output-dir', default='./exports', help='Output directory')
+    file_parser.add_argument('--title', help='Title for report (PDF/Word)')
+    
+    export_parser.set_defaults(func=cmd_export)
     
     # Parse arguments and execute
     args = parser.parse_args()

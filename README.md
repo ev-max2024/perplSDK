@@ -132,6 +132,12 @@ perpl-research copilot --context ev --output performance_report
 perpl-research copilot --context manufacturing --geographic-focus "north america"
 perpl-research copilot --context operations --queries "workflow optimization" "process efficiency"
 
+# Data export - convert data to various formats
+perpl-research export formats  # List available formats
+perpl-research export file data.json --format excel --output report
+perpl-research export file data.json --format pdf --output report --title "Market Analysis"
+perpl-research export file data.csv --format docx --output document
+
 # Trend monitoring
 perpl-research trends detect "electric vehicles" "battery technology"
 
@@ -141,6 +147,45 @@ perpl-research schedule add "Daily EV Trends" trend_analysis daily --topic "elec
 # GitHub integration
 perpl-research github publish report.md reports/latest.md --message "Latest analysis"
 ```
+
+## 📁 Data Export
+
+Export research data and reports to multiple formats:
+
+```python
+from perplSDK import DataExporter
+
+exporter = DataExporter(output_dir="./exports")
+
+# Export to Excel
+excel_path = exporter.export_to_excel(data, "report", sheet_name="Insights")
+
+# Export to PDF
+pdf_path = exporter.export_to_pdf(data, "report", title="Market Intelligence Report")
+
+# Export to Word (DOCX)
+docx_path = exporter.export_to_docx(data, "report", title="Research Document")
+
+# Export to CSV (for CRM integration)
+csv_path = exporter.export_to_csv(data, "report")
+
+# Export to JSON
+json_path = exporter.export_to_json(data, "report")
+
+# Export research results directly
+exporter.export_research_results(results, "excel", "research_output")
+
+# Check available formats
+available = DataExporter.get_available_formats()
+```
+
+### Supported Export Formats
+
+- **Excel (.xlsx)** - Professional spreadsheets with formatting and metadata
+- **PDF** - Formatted reports with tables and styling
+- **Word (.docx)** - Editable documents with tables
+- **CSV** - Simple format for CRM and data integration
+- **JSON** - Structured data with optional metadata
 
 ## 🚀 COPILOT - Super Fast Performance Intelligence
 
@@ -345,6 +390,14 @@ mypy perplSDK/
 - `markdown>=3.5.0` - Markdown processing
 - `jinja2>=3.1.0` - Template engine
 - `pyyaml>=6.0.0` - YAML configuration
+
+### Optional Export Dependencies
+
+Install with `pip install perplSDK[export]`:
+
+- `openpyxl>=3.1.2` - Excel export
+- `python-docx>=1.1.0` - Word/DOCX export
+- `reportlab>=4.1.0` - PDF export
 
 ## 🤝 Contributing
 

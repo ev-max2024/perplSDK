@@ -1,0 +1,535 @@
+"""Data export utilities for perplSDK.
+
+This module provides functionality to export research data and reports
+to various formats including Excel, PDF, Word, CSV, and JSON.
+"""
+
+import csv
+import json
+from datetime import datetime
+from io import BytesIO, StringIO
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+
+# Optional imports for various export formats
+try:
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    EXCEL_AVAILABLE = True
+except ImportError:
+    EXCEL_AVAILABLE = False
+
+try:
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    PDF_AVAILABLE = True
+except ImportError:
+    PDF_AVAILABLE = False
+
+try:
+    from docx import Document
+    from docx.shared import Inches, Pt
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    DOCX_AVAILABLE = True
+except ImportError:
+    DOCX_AVAILABLE = False
+
+
+class DataExporter:
+    """Export research data and reports to various formats."""
+
+    def __init__(self, output_dir: Optional[str] = None):
+        """Initialize the DataExporter.
+
+        Args:
+            output_dir: Default output directory for exported files.
+        """
+        self.output_dir = output_dir or "./exports"
+        Path(self.output_dir).mkdir(parents=True, exist_ok=True)
+
+    def export_to_excel(
+        self,
+        data: Union[List[Dict[str, Any]], Dict[str, Any]],
+        filename: str,
+        sheet_name: str = "Data",
+        include_metadata: bool = True
+    ) -> str:
+        """Export data to Excel format.
+
+        Args:
+            data: Data to export (list of dicts or single dict).
+            filename: Output filename (without extension).
+            sheet_name: Name of the Excel sheet.
+            include_metadata: Whether to include metadata sheet.
+
+        Returns:
+            Path to the exported file.
+
+        Raises:
+            ImportError: If openpyxl is not installed.
+        """
+        if not EXCEL_AVAILABLE:
+            raise ImportError(
+                "openpyxl is required for Excel export. "
+                "Install it with: pip install openpyxl"
+            )
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = sheet_name
+
+        # Handle both list and dict inputs
+        if isinstance(data, dict):
+            data_list = [data]
+        else:
+            data_list = data if data else []
+
+        if data_list:
+            # Write headers
+            headers = list(data_list[0].keys())
+            header_font = Font(bold=True, color="FFFFFF")
+            header_fill = PatternFill(
+                start_color="4472C4", end_color="4472C4", fill_type="solid"
+            )
+            thin_border = Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'),
+                bottom=Side(style='thin')
+            )
+
+            for col_idx, header in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col_idx, value=str(header))
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = Alignment(horizontal="center")
+                cell.border = thin_border
+
+            # Write data rows
+            for row_idx, row_data in enumerate(data_list, 2):
+                for col_idx, header in enumerate(headers, 1):
+                    value = row_data.get(header, "")
+                    # Convert complex types to string
+                    if isinstance(value, (list, dict)):
+                        value = json.dumps(value, ensure_ascii=False)
+                    cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                    cell.border = thin_border
+                    cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+            # Auto-adjust column widths
+            for col_idx, header in enumerate(headers, 1):
+                column_letter = get_column_letter(col_idx)
+                max_length = max(
+                    len(str(header)),
+                    max((min(len(str(row.get(header, ""))), 50) for row in data_list), default=0)
+                )
+                ws.column_dimensions[column_letter].width = min(max_length + 2, 50)
+
+        # Add metadata sheet if requested
+        if include_metadata:
+            meta_ws = wb.create_sheet(title="Metadata")
+            metadata = [
+                ("Generated At", datetime.now().isoformat()),
+                ("Total Records", len(data_list)),
+                ("Export Format", "Excel (xlsx)"),
+                ("Generated By", "perplSDK DataExporter"),
+            ]
+            for row_idx, (key, value) in enumerate(metadata, 1):
+                meta_ws.cell(row=row_idx, column=1, value=key).font = Font(bold=True)
+                meta_ws.cell(row=row_idx, column=2, value=str(value))
+
+        # Save file
+        if not filename.endswith('.xlsx'):
+            filename += '.xlsx'
+        filepath = Path(self.output_dir) / filename
+        wb.save(filepath)
+
+        return str(filepath)
+
+    def export_to_pdf(
+        self,
+        data: Union[List[Dict[str, Any]], Dict[str, Any]],
+        filename: str,
+        title: str = "Research Report",
+        include_summary: bool = True
+    ) -> str:
+        """Export data to PDF format.
+
+        Args:
+            data: Data to export.
+            filename: Output filename (without extension).
+            title: Title for the PDF report.
+            include_summary: Whether to include a summary section.
+
+        Returns:
+            Path to the exported file.
+
+        Raises:
+            ImportError: If reportlab is not installed.
+        """
+        if not PDF_AVAILABLE:
+            raise ImportError(
+                "reportlab is required for PDF export. "
+                "Install it with: pip install reportlab"
+            )
+
+        if not filename.endswith('.pdf'):
+            filename += '.pdf'
+        filepath = Path(self.output_dir) / filename
+
+        doc = SimpleDocTemplate(
+            str(filepath),
+            pagesize=letter,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=72
+        )
+
+        styles = getSampleStyleSheet()
+        story = []
+
+        # Title
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            spaceAfter=30,
+            alignment=1  # Center
+        )
+        story.append(Paragraph(title, title_style))
+        story.append(Spacer(1, 12))
+
+        # Metadata
+        meta_style = styles['Normal']
+        story.append(Paragraph(
+            f"<i>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</i>",
+            meta_style
+        ))
+        story.append(Paragraph(
+            "<i>Generated by perplSDK</i>",
+            meta_style
+        ))
+        story.append(Spacer(1, 24))
+
+        # Handle data
+        if isinstance(data, dict):
+            data_list = [data]
+        else:
+            data_list = data if data else []
+
+        # Summary section
+        if include_summary and data_list:
+            story.append(Paragraph("Summary", styles['Heading2']))
+            story.append(Spacer(1, 6))
+            story.append(Paragraph(
+                f"Total records: {len(data_list)}",
+                styles['Normal']
+            ))
+            story.append(Spacer(1, 12))
+
+        # Data table
+        if data_list:
+            headers = list(data_list[0].keys())
+
+            # Truncate cell content for table display
+            def truncate_value(val, max_length: int = 80) -> str:
+                str_val = str(val) if not isinstance(val, (list, dict)) else json.dumps(val)
+                return str_val[:max_length] + "..." if len(str_val) > max_length else str_val
+
+            table_data = [headers]
+            for row in data_list[:50]:  # Limit rows for PDF
+                table_data.append([truncate_value(row.get(h, "")) for h in headers])
+
+            # Create table with styling
+            table = Table(table_data, repeatRows=1)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4472C4')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F2F2F2')]),
+            ]))
+
+            story.append(Paragraph("Data", styles['Heading2']))
+            story.append(Spacer(1, 6))
+            story.append(table)
+
+        doc.build(story)
+        return str(filepath)
+
+    def export_to_docx(
+        self,
+        data: Union[List[Dict[str, Any]], Dict[str, Any]],
+        filename: str,
+        title: str = "Research Report",
+        include_table_of_contents: bool = False
+    ) -> str:
+        """Export data to Word (DOCX) format.
+
+        Args:
+            data: Data to export.
+            filename: Output filename (without extension).
+            title: Title for the document.
+            include_table_of_contents: Whether to include a table of contents.
+
+        Returns:
+            Path to the exported file.
+
+        Raises:
+            ImportError: If python-docx is not installed.
+        """
+        if not DOCX_AVAILABLE:
+            raise ImportError(
+                "python-docx is required for DOCX export. "
+                "Install it with: pip install python-docx"
+            )
+
+        doc = Document()
+
+        # Title
+        title_para = doc.add_heading(title, 0)
+        title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        # Metadata
+        doc.add_paragraph(
+            f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        ).italic = True
+        doc.add_paragraph("Generated by perplSDK").italic = True
+
+        # Handle data
+        if isinstance(data, dict):
+            data_list = [data]
+        else:
+            data_list = data if data else []
+
+        # Summary
+        doc.add_heading("Summary", level=1)
+        doc.add_paragraph(f"Total records: {len(data_list)}")
+
+        # Data section
+        if data_list:
+            doc.add_heading("Data", level=1)
+            headers = list(data_list[0].keys())
+
+            # Create table
+            table = doc.add_table(rows=1, cols=len(headers))
+            table.style = 'Table Grid'
+
+            # Header row
+            header_cells = table.rows[0].cells
+            for idx, header in enumerate(headers):
+                header_cells[idx].text = str(header)
+                for paragraph in header_cells[idx].paragraphs:
+                    for run in paragraph.runs:
+                        run.font.bold = True
+
+            # Data rows
+            for row_data in data_list[:100]:  # Limit rows for DOCX
+                row_cells = table.add_row().cells
+                for idx, header in enumerate(headers):
+                    value = row_data.get(header, "")
+                    if isinstance(value, (list, dict)):
+                        value = json.dumps(value, ensure_ascii=False)
+                    row_cells[idx].text = str(value)[:500]  # Truncate long values
+
+        # Save file
+        if not filename.endswith('.docx'):
+            filename += '.docx'
+        filepath = Path(self.output_dir) / filename
+        doc.save(filepath)
+
+        return str(filepath)
+
+    def export_to_csv(
+        self,
+        data: Union[List[Dict[str, Any]], Dict[str, Any]],
+        filename: str,
+        delimiter: str = ",",
+        include_header: bool = True
+    ) -> str:
+        """Export data to CSV format.
+
+        Args:
+            data: Data to export.
+            filename: Output filename (without extension).
+            delimiter: Field delimiter character.
+            include_header: Whether to include column headers.
+
+        Returns:
+            Path to the exported file.
+        """
+        if isinstance(data, dict):
+            data_list = [data]
+        else:
+            data_list = data if data else []
+
+        if not filename.endswith('.csv'):
+            filename += '.csv'
+        filepath = Path(self.output_dir) / filename
+
+        if not data_list:
+            # Write empty file
+            with open(filepath, 'w', newline='', encoding='utf-8') as f:
+                pass
+            return str(filepath)
+
+        headers = list(data_list[0].keys())
+
+        with open(filepath, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=headers, delimiter=delimiter)
+            if include_header:
+                writer.writeheader()
+
+            for row in data_list:
+                # Convert complex types to JSON strings
+                cleaned_row = {}
+                for key, value in row.items():
+                    if isinstance(value, (list, dict)):
+                        cleaned_row[key] = json.dumps(value, ensure_ascii=False)
+                    else:
+                        cleaned_row[key] = value
+                writer.writerow(cleaned_row)
+
+        return str(filepath)
+
+    def export_to_json(
+        self,
+        data: Union[List[Dict[str, Any]], Dict[str, Any]],
+        filename: str,
+        indent: int = 2,
+        include_metadata: bool = True
+    ) -> str:
+        """Export data to JSON format.
+
+        Args:
+            data: Data to export.
+            filename: Output filename (without extension).
+            indent: JSON indentation level.
+            include_metadata: Whether to include metadata wrapper.
+
+        Returns:
+            Path to the exported file.
+        """
+        if not filename.endswith('.json'):
+            filename += '.json'
+        filepath = Path(self.output_dir) / filename
+
+        if include_metadata:
+            output = {
+                "metadata": {
+                    "generated_at": datetime.now().isoformat(),
+                    "total_records": len(data) if isinstance(data, list) else 1,
+                    "export_format": "JSON",
+                    "generated_by": "perplSDK DataExporter"
+                },
+                "data": data
+            }
+        else:
+            output = data
+
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(output, f, indent=indent, ensure_ascii=False, default=str)
+
+        return str(filepath)
+
+    def export_insights(
+        self,
+        insights: List[Dict[str, Any]],
+        format: str,
+        filename: str,
+        **kwargs
+    ) -> str:
+        """Export market intelligence insights to the specified format.
+
+        Args:
+            insights: List of insight dictionaries.
+            format: Export format ('excel', 'pdf', 'docx', 'csv', 'json').
+            filename: Output filename (without extension).
+            **kwargs: Additional format-specific arguments.
+
+        Returns:
+            Path to the exported file.
+
+        Raises:
+            ValueError: If unsupported format is specified.
+        """
+        format = format.lower()
+
+        if format in ('excel', 'xlsx'):
+            return self.export_to_excel(insights, filename, **kwargs)
+        elif format == 'pdf':
+            return self.export_to_pdf(insights, filename, **kwargs)
+        elif format in ('docx', 'word'):
+            return self.export_to_docx(insights, filename, **kwargs)
+        elif format == 'csv':
+            return self.export_to_csv(insights, filename, **kwargs)
+        elif format == 'json':
+            return self.export_to_json(insights, filename, **kwargs)
+        else:
+            raise ValueError(
+                f"Unsupported export format: {format}. "
+                f"Supported formats: excel, pdf, docx, csv, json"
+            )
+
+    def export_research_results(
+        self,
+        results: List[Any],
+        format: str,
+        filename: str,
+        **kwargs
+    ) -> str:
+        """Export research results to the specified format.
+
+        Args:
+            results: List of SearchResult objects or dictionaries.
+            format: Export format ('excel', 'pdf', 'docx', 'csv', 'json').
+            filename: Output filename (without extension).
+            **kwargs: Additional format-specific arguments.
+
+        Returns:
+            Path to the exported file.
+        """
+        # Convert SearchResult objects to dictionaries if needed
+        data_list = []
+        for result in results:
+            if hasattr(result, '__dict__'):
+                # Handle pydantic models or regular objects
+                if hasattr(result, 'model_dump'):
+                    data_list.append(result.model_dump())
+                elif hasattr(result, 'dict'):
+                    data_list.append(result.dict())
+                else:
+                    data_list.append(vars(result))
+            elif isinstance(result, dict):
+                data_list.append(result)
+            else:
+                data_list.append({"content": str(result)})
+
+        return self.export_insights(data_list, format, filename, **kwargs)
+
+    @staticmethod
+    def get_available_formats() -> Dict[str, bool]:
+        """Get available export formats and their availability status.
+
+        Returns:
+            Dictionary of format names to availability status.
+        """
+        return {
+            "excel": EXCEL_AVAILABLE,
+            "pdf": PDF_AVAILABLE,
+            "docx": DOCX_AVAILABLE,
+            "csv": True,  # Always available (built-in)
+            "json": True,  # Always available (built-in)
+        }
