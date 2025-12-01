@@ -7,7 +7,6 @@ to various formats including Excel, PDF, Word, CSV, and JSON.
 import csv
 import json
 from datetime import datetime
-from io import BytesIO, StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -24,7 +23,6 @@ try:
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.units import inch
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
     PDF_AVAILABLE = True
 except ImportError:
@@ -32,7 +30,6 @@ except ImportError:
 
 try:
     from docx import Document
-    from docx.shared import Inches, Pt
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     DOCX_AVAILABLE = True
 except ImportError:
